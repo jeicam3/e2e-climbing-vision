@@ -20,8 +20,10 @@ def get_climbing_model(num_classes=4, dropout_rate=0.6, mode='fine_tune_top'):
             param.requires_grad = True
         
     elif mode == 'fine_tune_top':
-        # odmrożony ostatni blok konwolucyjny
+        # odmrożony ostatni i przedostatni blok konwolucyjny
         for param in model.features[8].parameters():
+            param.requires_grad = True
+        for param in model.features[7].parameters():
             param.requires_grad = True
 
     num_ftrs = model.classifier[1].in_features
