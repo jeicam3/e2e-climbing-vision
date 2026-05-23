@@ -59,3 +59,13 @@ def get_climbing_model(model_name="b0", num_classes=4, dropout_rate=0.6, freeze_
     )
     
     return model, resolution
+
+def update_model_freezing(model, freeze_until_block=8):
+    """Zmienia stan zamrożenia bloków features bez dotykania klasyfikatora."""
+    for i, block in enumerate(model.features):
+        if i < freeze_until_block:
+            for param in block.parameters():
+                param.requires_grad = False
+        else:
+            for param in block.parameters():
+                param.requires_grad = True
