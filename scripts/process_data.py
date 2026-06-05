@@ -8,7 +8,7 @@ PARTICIPANTS = ["p1", "p2a", "p2b", "p3", "p4", "p5", "p6", "p7", "p8", "p9", "p
 OUTPUT_FOLDER = "full-data"
 LABELS_CSV = "labels.csv"
 TARGET_SIZE = (224, 224)
-FRAME_STEP = 15
+FRAME_STEP = 20
 
 if not os.path.exists(OUTPUT_FOLDER):
     os.makedirs(OUTPUT_FOLDER)

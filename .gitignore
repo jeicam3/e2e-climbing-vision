@@ -4,3 +4,6 @@
 .venv/
 data/dataset/
 checkpoints/
+data/custom_dataset/
+*.csv
+dataset/
