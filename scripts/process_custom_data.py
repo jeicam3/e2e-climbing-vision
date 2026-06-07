@@ -10,16 +10,16 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # 2. Główny folder projektu (jeden poziom wyżej niż 'scripts', czyli /TwójProjekt)
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
-
+DATASET_DIR = os.path.join(PROJECT_ROOT, "yolo-dataset1")
 # 3. Ścieżki wyjściowe (powstaną na tym samym poziomie co folder 'scripts')
-OUTPUT_IMG_DIR = os.path.join(PROJECT_ROOT, "full-data")
-OUTPUT_CSV = os.path.join(PROJECT_ROOT, "labels.csv")
+OUTPUT_IMG_DIR = os.path.join(DATASET_DIR, "full-data")
+OUTPUT_CSV = os.path.join(DATASET_DIR, "labels.csv")
 
 # 4. Ścieżki do Twojego nowego zbioru
 # Zakładam, że custom_dataset masz w folderze 'data' w głównym projekcie
 # Jeśli masz go gdzie indziej, np. bezpośrednio w PROJECT_ROOT, usuń "data" z os.path.join
 CUSTOM_DIR = os.path.join(PROJECT_ROOT, "data", "custom_dataset") 
-VIDEOS_DIR = os.path.join(CUSTOM_DIR, "videos")
+VIDEOS_DIR = os.path.join(CUSTOM_DIR, "videos_yolo")
 LABELS_DIR = os.path.join(CUSTOM_DIR, "labels")
 STATUS_CSV = os.path.join(CUSTOM_DIR, "labeling_status.csv")
 
@@ -52,7 +52,7 @@ def main():
     # 2. Przetwarzanie wyselekcjonowanych filmów
     for video_name in completed_videos:
         video_base = os.path.splitext(video_name)[0] # np. "IMG_0894"
-        video_path = os.path.join(VIDEOS_DIR, video_name)
+        video_path = os.path.join(VIDEOS_DIR, f"{video_base}.mp4")
         label_path = os.path.join(LABELS_DIR, f"{video_base}_labels.csv")
 
         if not os.path.exists(video_path):
