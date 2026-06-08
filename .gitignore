@@ -8,3 +8,4 @@ checkpoints/
 data/custom_dataset/
 *.csv
 dataset/
+yolo-dataset1/
