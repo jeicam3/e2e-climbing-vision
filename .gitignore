@@ -8,3 +8,6 @@ data/custom_dataset/
 *.csv
 dataset/
 yolo-dataset1/
+models/
+export_climber_bboxes.py
+cropped_dataset/

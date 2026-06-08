@@ -3,8 +3,8 @@ import cv2
 import torch.nn as nn
 from torchvision import transforms, models
 
-MODEL_PATH = 'checkpoints/climbing_model_label_smoothing.pth'
-VIDEO_PATH = 'data/dataset/p1/green.mp4'
+MODEL_PATH = 'checkpoints/yolo_climbing_model.pth'
+VIDEO_PATH = 'data/test_video.mp4'
 CLASS_NAMES = ['LH', 'RH', 'LF', 'RF']
 
 #visualization settings
