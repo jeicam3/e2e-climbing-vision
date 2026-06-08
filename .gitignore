@@ -2,6 +2,7 @@
 *.zip
 *.pth
 .venv/
+.idea
 data/dataset/
 checkpoints/
 data/custom_dataset/

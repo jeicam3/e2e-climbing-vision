@@ -3,8 +3,8 @@ import cv2
 import torch.nn as nn
 from torchvision import transforms, models
 
-MODEL_PATH = 'checkpoints/climbing_model_label_smoothing.pth'
-VIDEO_PATH = 'data/dataset/p1/green.mp4'
+MODEL_PATH = '../checkpoints/climbing_model1.pth'
+VIDEO_PATH = '../data/dataset/IMG_0903.MOV'
 CLASS_NAMES = ['LH', 'RH', 'LF', 'RF']
 
 #visualization settings
@@ -14,7 +14,7 @@ start_x = 20
 start_y = 300
 
 def load_trained_model(path):
-    model = models.efficientnet_b0(weights=None)
+    model = models.efficientnet_b2(weights=None)
     num_ftrs = model.classifier[1].in_features
     model.classifier[1] = nn.Sequential(
         nn.Dropout(p=0.6),
@@ -54,13 +54,21 @@ def visualize(frame, probs):
 
 preprocess = transforms.Compose([
     transforms.ToPILImage(),
-    transforms.Resize((224, 224)),
+    transforms.Resize((260, 260)),
     transforms.ToTensor(),
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
 model = load_trained_model(MODEL_PATH)
 cap = cv2.VideoCapture(VIDEO_PATH)
+
+frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+fps = int(cap.get(cv2.CAP_PROP_FPS))
+
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+OUTPUT_PATH = '../data/dataset/test.mp4' # Ścieżka do pliku wynikowego
+out = cv2.VideoWriter(OUTPUT_PATH, fourcc, fps, (frame_width, frame_height))
 
 while cap.isOpened():
     ret, frame = cap.read()
@@ -69,9 +77,14 @@ while cap.isOpened():
 
     visualize(frame, probs)
 
-    cv2.imshow('Climbing Vision AI', frame)
+    out.write(frame)
+
+    #cv2.imshow('Climbing Vision AI', frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
-    #print(probs)
-             
+
 cap.release()
+
+out.release()
+
+cv2.destroyAllWindows()
