@@ -28,10 +28,11 @@ LABEL_DIR = TEST_VIDEO_DIR / "labels"
 BBOX_DIR = TEST_VIDEO_DIR / "bboxes"
 FALLBACK_BBOX_DIR = PROJECT_ROOT / "data" / "climber_bboxes"
 RESULTS_DIR = PROJECT_ROOT / "data" / "evaluation_results"
+VIDEO_EXTENSIONS = [".mp4", ".MP4", ".mov", ".MOV", ".avi", ".AVI", ".mkv", ".MKV"]
 
-# Keep this list explicit for the report. Put the selected raw test videos in
-# data/test_videos/raw with these exact file names. Masked videos are matched by
-# stem, so IMG_0898.MOV in raw can use IMG_0898.mp4 in data/test_videos/masked.
+# Default test videos for models without their own test_videos list. Names may
+# include or omit the extension. Raw videos are matched in data/test_videos/raw
+# by stem, so IMG_0898.MOV and IMG_0898 both resolve to the same test sample.
 TEST_VIDEO_FILES = [
     "IMG_0898.MOV",
     "IMG_0912.MOV",
@@ -43,26 +44,43 @@ MODEL_CONFIGS = [
     {
         "name": "e2e",
         "description": "Full-frame EfficientNet baseline",
-        "model_path": "checkpoints/e2e_climbing_model.pth",
+        "model_path": "checkpoints/two_stage_b2_run.pth",
         "input_mode": "raw",
         "model_name": "b2",
         "dropout_rate": 0.6,
+        "test_videos": [
+            "p9_orange",
+            "p9_green",
+            "p4_orange",
+            "p4_green",
+            "IMG_0903",
+            "IMG_0895",
+            "p5_orange",
+            "p5_green",
+            "p10_green",
+            "p10_orange",
+        ],
     },
     {
         "name": "masks_bbox",
         "description": "Frames with hold masks and climber bbox overlay",
-        "model_path": "checkpoints/yolo_best.pth",
+        "model_path": "checkpoints/yolo_climbing_model.pth",
         "input_mode": "masked",
         "model_name": "b2",
         "dropout_rate": 0.6,
+        "test_videos": [
+            "IMG_0903",
+            "IMG_0899",
+        ],
     },
     {
         "name": "bbox_crop",
         "description": "Climber crop based on bbox CSV",
-        "model_path": "checkpoints/model_cropped_version.pth",
+        "model_path": "checkpoints/last.pth",
         "input_mode": "crop",
         "model_name": "b2",
         "dropout_rate": 0.6,
+        "test_videos": TEST_VIDEO_FILES,
     },
 ]
 
@@ -132,18 +150,52 @@ def ensure_layout():
         directory.mkdir(parents=True, exist_ok=True)
 
 
-def copy_test_videos_from(source_dir):
+def get_test_videos(config):
+    return list(config.get("test_videos") or TEST_VIDEO_FILES)
+
+
+def selected_test_videos(configs):
+    videos = []
+    seen_stems = set()
+    for config in configs:
+        for video_name in get_test_videos(config):
+            stem = Path(video_name).stem.lower()
+            if stem in seen_stems:
+                continue
+            seen_stems.add(stem)
+            videos.append(video_name)
+    return videos
+
+
+def find_video_path(video_name, directory):
+    exact_path = directory / video_name
+    if exact_path.exists():
+        return exact_path
+
+    stem = Path(video_name).stem
+    for suffix in VIDEO_EXTENSIONS:
+        candidate = directory / f"{stem}{suffix}"
+        if candidate.exists():
+            return candidate
+
+    matches = sorted(path for path in directory.glob(f"{stem}.*") if path.is_file())
+    return matches[0] if matches else exact_path
+
+
+def copy_test_videos_from(source_dir, video_names):
     source_dir = resolve_path(source_dir)
     copied = []
     missing = []
-    for file_name in TEST_VIDEO_FILES:
-        source = source_dir / file_name
-        target = RAW_VIDEO_DIR / file_name
-        if target.exists():
+    for file_name in video_names:
+        existing_target = find_video_path(file_name, RAW_VIDEO_DIR)
+        if existing_target.exists():
             continue
+
+        source = find_video_path(file_name, source_dir)
+        target = RAW_VIDEO_DIR / source.name
         if source.exists():
             shutil.copy2(source, target)
-            copied.append(file_name)
+            copied.append(source.name)
         else:
             missing.append(file_name)
     return copied, missing
@@ -338,7 +390,13 @@ def load_model(config, device):
 
     model_path = resolve_path(model_path_value)
     if not model_path.exists():
-        raise FileNotFoundError(f"Model file for '{config['name']}' not found: {model_path}")
+        checkpoint_dir = model_path.parent
+        available = sorted(path.name for path in checkpoint_dir.glob("*.pth")) if checkpoint_dir.exists() else []
+        available_text = ", ".join(available) if available else "none"
+        raise FileNotFoundError(
+            f"Model file for '{config['name']}' not found: {model_path}. "
+            f"Available .pth files in {checkpoint_dir}: {available_text}"
+        )
 
     model = build_model(config.get("model_name", "b2"), float(config.get("dropout_rate", 0.6)))
     try:
@@ -400,21 +458,29 @@ def bce_loss(labels, probs, eps=1e-7):
     return total / len(labels)
 
 
-def collect_examples(args):
+def collect_examples(args, config):
     examples = []
     data_rows = []
+    model_name = config["name"]
+    video_names = get_test_videos(config)
+    video_dir = MASKED_VIDEO_DIR if config["input_mode"] == "masked" else RAW_VIDEO_DIR
 
-    for video_name in TEST_VIDEO_FILES:
-        video_path = RAW_VIDEO_DIR / video_name
+    for video_name in video_names:
+        video_path = find_video_path(video_name, video_dir)
+        resolved_video_name = video_path.name if video_path.exists() else video_name
         labels_by_frame, label_path = load_frame_labels(video_name)
         bboxes, bbox_path = load_bboxes(video_name)
 
         if not video_path.exists():
             data_rows.append(
                 {
-                    "video": video_name,
+                    "model": model_name,
+                    "input_mode": config["input_mode"],
+                    "video_request": video_name,
+                    "video": resolved_video_name,
                     "status": "missing_video",
                     "frames_total": 0,
+                    "frames_loaded": 0,
                     "frames_labeled": 0,
                     "label_path": path_to_str(label_path),
                     "bbox_path": path_to_str(bbox_path),
@@ -431,9 +497,13 @@ def collect_examples(args):
         if not cap.isOpened():
             data_rows.append(
                 {
-                    "video": video_name,
+                    "model": model_name,
+                    "input_mode": config["input_mode"],
+                    "video_request": video_name,
+                    "video": resolved_video_name,
                     "status": "cannot_open_video",
                     "frames_total": 0,
+                    "frames_loaded": 0,
                     "frames_labeled": 0,
                     "label_path": path_to_str(label_path),
                     "bbox_path": path_to_str(bbox_path),
@@ -464,14 +534,17 @@ def collect_examples(args):
             if frame_idx in bboxes:
                 bbox_hits += 1
 
-            examples.append(EvalExample(video_name=video_name, frame_idx=frame_idx, labels=labels))
+            examples.append(EvalExample(video_name=resolved_video_name, frame_idx=frame_idx, labels=labels))
 
         cap.release()
         loaded = len(valid_frame_indices)
         labeled_count = sum(1 for frame_idx in valid_frame_indices if frame_idx in labels_by_frame)
         data_rows.append(
             {
-                "video": video_name,
+                "model": model_name,
+                "input_mode": config["input_mode"],
+                "video_request": video_name,
+                "video": resolved_video_name,
                 "status": "ok",
                 "frames_total": frames_total,
                 "frames_loaded": loaded,
@@ -516,7 +589,7 @@ def get_model_input(example, config, args, masked_cache, raw_cache, bbox_cache):
         if raw_frame is None:
             return None, {"used_bbox": False, "used_masked_video": False, "skipped_reason": "missing_raw_frame"}
 
-        bboxes, _ = bbox_cache.get(example.video_name, ({}, None))
+        bboxes, _ = bbox_cache.get(Path(example.video_name).stem, ({}, None))
         bbox = bboxes.get(example.frame_idx)
         if bbox is None:
             if args.missing_bbox == "skip":
@@ -537,29 +610,18 @@ def read_masked_frame(example, masked_cache):
     video_path = find_masked_video_path(example.video_name)
     if not video_path.exists():
         return None
-    return read_cached_video_frame(example.video_name, example.frame_idx, masked_cache, video_path)
+    return read_cached_video_frame(video_path.name, example.frame_idx, masked_cache, video_path)
 
 
 def find_masked_video_path(raw_video_name):
-    exact_path = MASKED_VIDEO_DIR / raw_video_name
-    if exact_path.exists():
-        return exact_path
-
-    stem = Path(raw_video_name).stem
-    for suffix in [".mp4", ".MP4", ".mov", ".MOV", ".avi", ".AVI", ".mkv", ".MKV"]:
-        candidate = MASKED_VIDEO_DIR / f"{stem}{suffix}"
-        if candidate.exists():
-            return candidate
-
-    matches = sorted(MASKED_VIDEO_DIR.glob(f"{stem}.*"))
-    return matches[0] if matches else exact_path
+    return find_video_path(raw_video_name, MASKED_VIDEO_DIR)
 
 
 def read_raw_frame(example, raw_cache):
-    video_path = RAW_VIDEO_DIR / example.video_name
+    video_path = find_video_path(example.video_name, RAW_VIDEO_DIR)
     if not video_path.exists():
         return None
-    return read_cached_video_frame(example.video_name, example.frame_idx, raw_cache, video_path)
+    return read_cached_video_frame(video_path.name, example.frame_idx, raw_cache, video_path)
 
 
 def read_cached_video_frame(cache_key, frame_idx, cache, video_path):
@@ -584,7 +646,7 @@ def read_cached_video_frame(cache_key, frame_idx, cache, video_path):
 def evaluate_model(config, examples, args, device):
     model = load_model(config, device)
     preprocess = build_preprocess(config.get("model_name", "b2"))
-    bbox_cache = {video_name: load_bboxes(video_name) for video_name in TEST_VIDEO_FILES}
+    bbox_cache = {Path(video_name).stem: load_bboxes(video_name) for video_name in get_test_videos(config)}
     masked_cache = {}
     raw_cache = {}
 
@@ -849,13 +911,15 @@ def write_markdown_report(path, summary_rows, per_limb_rows, per_video_rows, dat
         "",
         "## Test videos",
         "",
-        "| Video | Status | Loaded frames | Labeled frames | Bbox coverage | LH+ | RH+ | LF+ | RF+ |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "| Model | Mode | Video | Status | Loaded frames | Labeled frames | Bbox coverage | LH+ | RH+ | LF+ | RF+ |",
+        "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in data_rows:
         lines.append(
-            "| {video} | {status} | {frames_loaded} | {frames_labeled} | {bbox_coverage} | "
+            "| {model} | {input_mode} | {video} | {status} | {frames_loaded} | {frames_labeled} | {bbox_coverage} | "
             "{LH_positive} | {RH_positive} | {LF_positive} | {RF_positive} |".format(
+                model=row.get("model", ""),
+                input_mode=row.get("input_mode", ""),
                 video=row.get("video", ""),
                 status=row.get("status", ""),
                 frames_loaded=row.get("frames_loaded", ""),
@@ -967,7 +1031,7 @@ def resolve_device(device_arg):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Evaluate the three EfficientNet climbing-contact models on a shared video test set."
+        description="Evaluate the three EfficientNet climbing-contact models on their configured video test sets."
     )
     parser.add_argument("--models-json", default=None, help="Optional JSON file with MODEL_CONFIGS replacement.")
     parser.add_argument("--only", nargs="*", default=None, help="Evaluate only selected model names.")
@@ -1000,7 +1064,7 @@ def parse_args():
     parser.add_argument(
         "--copy-test-videos-from",
         default=None,
-        help="Optional source directory. Missing TEST_VIDEO_FILES are copied into data/test_videos/raw.",
+        help="Optional source directory. Missing selected test videos are copied into data/test_videos/raw.",
     )
     return parser.parse_args()
 
@@ -1011,18 +1075,15 @@ def main():
         raise ValueError("--batch-size must be at least 1.")
 
     ensure_layout()
+    configs = validate_model_configs(load_model_configs(args.models_json), args.only)
 
     if args.copy_test_videos_from:
-        copied, missing = copy_test_videos_from(args.copy_test_videos_from)
+        copied, missing = copy_test_videos_from(args.copy_test_videos_from, selected_test_videos(configs))
         if copied:
             print(f"Copied test videos: {', '.join(copied)}")
         if missing:
             print(f"Missing in source directory: {', '.join(missing)}")
 
-    examples, data_rows = collect_examples(args)
-    write_csv(RESULTS_DIR / "data_stats.csv", data_rows)
-
-    configs = validate_model_configs(load_model_configs(args.models_json), args.only)
     device = resolve_device(args.device)
 
     summary_rows = []
@@ -1030,9 +1091,15 @@ def main():
     per_video_rows = []
     confusion_rows = []
     prediction_rows = []
+    data_rows = []
 
     for config in configs:
-        print(f"Evaluating {config['name']} on {device}...")
+        examples, model_data_rows = collect_examples(args, config)
+        data_rows.extend(model_data_rows)
+        unavailable = [row["video_request"] for row in model_data_rows if row["status"] != "ok"]
+        if unavailable:
+            print(f"Warning: {config['name']} has unavailable test videos: {', '.join(unavailable)}")
+        print(f"Evaluating {config['name']} on {device} with {len(examples)} frames...")
         summary, limbs, videos, confusion, predictions = evaluate_model(config, examples, args, device)
         summary_rows.append(summary)
         per_limb_rows.extend(limbs)
@@ -1040,6 +1107,7 @@ def main():
         confusion_rows.extend(confusion)
         prediction_rows.extend(predictions)
 
+    write_csv(RESULTS_DIR / "data_stats.csv", data_rows)
     write_csv(RESULTS_DIR / "summary_metrics.csv", summary_rows)
     write_csv(RESULTS_DIR / "per_limb_metrics.csv", per_limb_rows)
     write_csv(RESULTS_DIR / "per_video_metrics.csv", per_video_rows)
