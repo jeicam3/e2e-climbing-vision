@@ -62,17 +62,17 @@ def main():
     os.makedirs(OUTPUT_IMG_DIR, exist_ok=True)
 
     if not os.path.exists(STATUS_CSV):
-        print(f"❌ Nie znaleziono pliku statusu: {STATUS_CSV}")
+        print(f"Nie znaleziono pliku statusu: {STATUS_CSV}")
         return
 
     status_df = pd.read_csv(STATUS_CSV)
     completed_videos = status_df[status_df['labeled'] == 1]['video'].tolist()
 
     if not completed_videos:
-        print("⚠️ Brak filmów oznaczonych w 100%. Sprawdź plik labeling_status.csv.")
+        print("Brak filmów oznaczonych w 100%. Sprawdź plik labeling_status.csv.")
         return
 
-    print(f"✅ Znaleziono {len(completed_videos)} gotowych filmów do przetworzenia: {completed_videos}")
+    print(f"Znaleziono {len(completed_videos)} gotowych filmów do przetworzenia: {completed_videos}")
     new_records = []
 
     for video_name in completed_videos:
@@ -85,10 +85,10 @@ def main():
         bboxes = load_bboxes(bbox_path) if CROP else {}
 
         if not os.path.exists(video_path):
-            print(f"⚠️ Pomijam. Brak pliku wideo: {video_path}")
+            print(f"Pomijam. Brak pliku wideo: {video_path}")
             continue
         if not os.path.exists(label_path):
-            print(f"⚠️ Pomijam. Brak pliku etykiet: {label_path}")
+            print(f"Pomijam. Brak pliku etykiet: {label_path}")
             continue
 
         labels_df = pd.read_csv(label_path)
@@ -134,12 +134,12 @@ def main():
         new_df = pd.DataFrame(new_records)
         if os.path.exists(OUTPUT_CSV):
             new_df.to_csv(OUTPUT_CSV, mode='a', header=False, index=False)
-            print(f"🎉 Sukces! Złączono datasety. Dopisano {len(new_records)} nowych klatek do {OUTPUT_CSV}.")
+            print(f"Sukces! Złączono datasety. Dopisano {len(new_records)} nowych klatek do {OUTPUT_CSV}.")
         else:
             new_df.to_csv(OUTPUT_CSV, mode='w', header=True, index=False)
-            print(f"🎉 Utworzono {OUTPUT_CSV} i zapisano do niego {len(new_records)} klatek.")
+            print(f"Utworzono {OUTPUT_CSV} i zapisano do niego {len(new_records)} klatek.")
     else:
-        print("⚠️ Nie wyekstrahowano żadnych klatek. Upewnij się, że frame_index w Twoich CSV pokrywa się ze skokiem (FRAME_STEP).")
+        print("Nie wyekstrahowano żadnych klatek. Upewnij się, że frame_index w Twoich CSV pokrywa się ze skokiem (FRAME_STEP).")
 
 if __name__ == "__main__":
     main()

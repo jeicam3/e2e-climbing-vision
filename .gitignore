@@ -12,3 +12,5 @@ yolo-dataset1/
 models/
 export_climber_bboxes.py
 cropped_dataset/
+/data/test_videos/raw/IMG_0898.MOV
+/data/test_videos/raw/IMG_0912.MOV
