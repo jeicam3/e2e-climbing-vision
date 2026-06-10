@@ -2,6 +2,7 @@
 *.zip
 *.pth
 .venv/
+.idea
 data/dataset/
 checkpoints/
 data/custom_dataset/
@@ -9,4 +10,7 @@ data/custom_dataset/
 dataset/
 yolo-dataset1/
 models/
+export_climber_bboxes.py
 cropped_dataset/
+/data/test_videos/raw/IMG_0898.MOV
+/data/test_videos/raw/IMG_0912.MOV
