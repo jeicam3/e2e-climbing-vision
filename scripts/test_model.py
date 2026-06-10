@@ -3,8 +3,8 @@ import cv2
 import torch.nn as nn
 from torchvision import transforms, models
 
-MODEL_PATH = '../checkpoints/model_cropped_version.pth'
-VIDEO_PATH = '../data/dataset/IMG_0912.MOV'
+MODEL_PATH = '../checkpoints/yolo_model.pth'
+VIDEO_PATH = '../data/dataset/IMG_0903.mp4'
 CLASS_NAMES = ['LH', 'RH', 'LF', 'RF']
 
 #visualization settings

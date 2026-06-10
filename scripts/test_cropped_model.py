@@ -12,10 +12,10 @@ from torchvision import models, transforms
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 
-DEFAULT_MODEL_PATH = PROJECT_ROOT / "checkpoints" / "last.pth"
+DEFAULT_MODEL_PATH = PROJECT_ROOT / "checkpoints" / "cropped_model.pth"
 DEFAULT_VIDEO_PATH = PROJECT_ROOT / "data" / "dataset" / "IMG_0899.mp4"
 DEFAULT_OUTPUT_PATH = PROJECT_ROOT / "data" / "dataset" / "test_cropped.mp4"
-DEFAULT_BBOX_DIR = PROJECT_ROOT / "climber_bboxes"
+DEFAULT_BBOX_DIR = PROJECT_ROOT / "data" / "climber_bboxes"
 
 CLASS_NAMES = ["LH", "RH", "LF", "RF"]
 MODEL_RESOLUTIONS = {

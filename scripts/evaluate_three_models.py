@@ -30,12 +30,9 @@ FALLBACK_BBOX_DIR = PROJECT_ROOT / "data" / "climber_bboxes"
 RESULTS_DIR = PROJECT_ROOT / "data" / "evaluation_results"
 VIDEO_EXTENSIONS = [".mp4", ".MP4", ".mov", ".MOV", ".avi", ".AVI", ".mkv", ".MKV"]
 
-# Default test videos for models without their own test_videos list. Names may
-# include or omit the extension. Raw videos are matched in data/test_videos/raw
-# by stem, so IMG_0898.MOV and IMG_0898 both resolve to the same test sample.
 TEST_VIDEO_FILES = [
-    "IMG_0898.MOV",
-    "IMG_0912.MOV",
+    "IMG_0903",
+    "IMG_0899",
 ]
 
 # Fill in model_path before running the final evaluation. All paths may be
@@ -44,39 +41,25 @@ MODEL_CONFIGS = [
     {
         "name": "e2e",
         "description": "Full-frame EfficientNet baseline",
-        "model_path": "checkpoints/two_stage_b2_run.pth",
+        "model_path": "checkpoints/e2e_model.pth",
         "input_mode": "raw",
         "model_name": "b2",
         "dropout_rate": 0.6,
-        "test_videos": [
-            "p9_orange",
-            "p9_green",
-            "p4_orange",
-            "p4_green",
-            "IMG_0903",
-            "IMG_0895",
-            "p5_orange",
-            "p5_green",
-            "p10_green",
-            "p10_orange",
-        ],
+        "test_videos": TEST_VIDEO_FILES,
     },
     {
         "name": "masks_bbox",
         "description": "Frames with hold masks and climber bbox overlay",
-        "model_path": "checkpoints/yolo_climbing_model.pth",
+        "model_path": "checkpoints/yolo_model.pth",
         "input_mode": "masked",
         "model_name": "b2",
         "dropout_rate": 0.6,
-        "test_videos": [
-            "IMG_0903",
-            "IMG_0899",
-        ],
+        "test_videos": TEST_VIDEO_FILES,
     },
     {
         "name": "bbox_crop",
         "description": "Climber crop based on bbox CSV",
-        "model_path": "checkpoints/last.pth",
+        "model_path": "checkpoints/cropped_model.pth",
         "input_mode": "crop",
         "model_name": "b2",
         "dropout_rate": 0.6,
