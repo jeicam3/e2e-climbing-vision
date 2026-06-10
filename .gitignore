@@ -4,3 +4,9 @@
 .venv/
 data/dataset/
 checkpoints/
+data/custom_dataset/
+*.csv
+dataset/
+yolo-dataset1/
+models/
+cropped_dataset/
